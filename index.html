@@ -77,7 +77,24 @@ const user={me:async()=>({id:myId,name:"",isOwner:false,canEdit:true})};
 const assets={async upload(blob){const bm=await createImageBitmap(blob),s=Math.min(1,800/Math.max(bm.width,bm.height)),c=document.createElement("canvas");
  c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(bm,0,0,c.width,c.height);
  return{id:uid(),url:c.toDataURL("image/jpeg",.8)}}};
-const downloads={async save({filename,data}){const b=data instanceof Blob?data:new Blob([data]),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}};
+// Téléchargement automatique : PC, Mac, iPad, tablettes Android
+const downloads={async save({filename,data}){
+ const b=data instanceof Blob?data:new Blob([data]);
+ const url=URL.createObjectURL(b);
+ // Anciens navigateurs sans attribut "download" (vieux Safari iOS) : ouverture du fichier
+ if(!("download" in HTMLAnchorElement.prototype)){
+  const w=window.open(url,"_blank");
+  if(!w)location.href=url;
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  return;
+ }
+ const a=document.createElement("a");
+ a.href=url;a.download=filename;a.rel="noopener";a.style.display="none";
+ document.body.appendChild(a);
+ a.click();
+ // délai long : Safari iPad/iPhone peut mettre du temps à lire le blob
+ setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},60000);
+}};
 window.claude={use:async n=>({db,user,assets,downloads}[n]||null)};
 })();
 
@@ -222,8 +239,15 @@ function synth(){
 async function csv(){
  const r=[["Question","Idée","Auteur","Date"],...ideas.sort((a,b)=>a.ts-b.ts).map(i=>[Q[i.q].t,i.text,i.author,new Date(i.ts).toISOString()])];
  const s="\ufeff"+r.map(x=>x.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(";")).join("\n");
- if(!dl)return toast("Téléchargement indisponible ici.");
+ if(!dl)return downloads_fallback(new Blob([s],{type:"text/csv;charset=utf-8"}),"propositions.csv");
  try{await dl.save({filename:"propositions.csv",data:s})}catch(e){if(e.code!="declined")toast("Export impossible.")}
+}
+// Secours si le service de téléchargement n'est pas disponible
+async function downloads_fallback(blob,fn){
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=fn;a.style.display="none";
+ document.body.appendChild(a);a.click();
+ setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},60000);
 }
 document.addEventListener("click",e=>{
  const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,id=b.dataset.id,i=ideas.find(x=>x.id==id);
@@ -234,7 +258,15 @@ document.addEventListener("click",e=>{
  else if(a=="add")ideaForm(+b.dataset.q);
  else if(a=="edit"&&i)ideaForm(i.q,i);
  else if(a=="sub"&&i)ideaForm(i.q,null,i.id);
- else if(a=="pdf"){const d=mkpdf();if(!d)return toast("Module PDF indisponible.");if(!dl)return toast("Téléchargement indisponible ici.");dl.save({filename:"carte-mentale.pdf",data:d.output("blob")}).catch(e=>{if(e.code!="declined")toast("Export impossible.")})}
+ else if(a=="pdf"){
+  const d=mkpdf();
+  if(!d)return toast("Module PDF indisponible (connexion ?).");
+  const blob=d.output("blob");
+  const fn="carte-mentale.pdf";
+  (dl?dl.save({filename:fn,data:blob}):downloads_fallback(blob,fn))
+   .then(()=>toast("PDF téléchargé"))
+   .catch(e=>{if(e&&e.code!="declined")toast("Export impossible.")});
+ }
  else if(a=="del"&&i){modal(`<p>Supprimer cette idée ?</p><b>${esc(i.text)}</b><div><button class="p" id="ok">Supprimer</button> <button onclick="close()">Annuler</button></div>`);$("#ok").onclick=async()=>{try{const dsc=x=>[x,...ideas.filter(k=>k.p===x).flatMap(k=>dsc(k.id))];await Promise.all(dsc(id).map(d=>col().doc(d).delete()));close()}catch(e){toast("Refusé.")}}}
  else if(a=="pic")picker(id);
  else if(a=="zoom")modal(`<img src="${esc(b.dataset.u)}" alt="" style="max-width:100%;border-radius:10px"><button onclick="close()">Fermer</button>`);
