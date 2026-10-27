@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="fr"><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Carte mentale collaborative</title>
+<title>Collaborative mind map</title>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f6f9;--fg:#1f2430;--card:#fff;--line:#b9bdcc;--mut:#646a7c;--bd:#d9dce6}
 html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
@@ -44,21 +44,21 @@ canvas{border:1px solid var(--bd);border-radius:10px;background:#fff;touch-actio
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:8px 14px;border-radius:10px;display:none;z-index:20}
 </style></head><body>
 <header id="hd" hidden>
-<button data-a="home">←</button><h1><span id="ttl"></span> <small style="color:var(--mut)">code : <b id="code"></b></small></h1>
-<input id="nm" placeholder="Votre nom" aria-label="Votre nom">
-<input id="sr" placeholder="Rechercher…" aria-label="Rechercher">
-<button data-a="vis">🖼 Visuels</button><button data-a="syn">Synthèse</button><button data-a="csv">CSV</button><button data-a="pdf">PDF</button><button data-a="share">🔗 Lien</button><button data-a="org" id="org" hidden>Réorganiser</button>
+<button data-a="home">←</button><h1><span id="ttl"></span> <small style="color:var(--mut)">code: <b id="code"></b></small></h1>
+<input id="nm" placeholder="Your name" aria-label="Your name">
+<input id="sr" placeholder="Search…" aria-label="Search">
+<button data-a="vis">🖼 Visuals</button><button data-a="syn">Summary</button><button data-a="csv">CSV</button><button data-a="pdf">PDF</button><button data-a="share">🔗 Link</button><button data-a="org" id="org" hidden>Rearrange</button>
 </header>
 <div id="app"></div><div id="md"></div><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-// ===== Stockage local (navigateur) : remplace tout service externe =====
+// ===== Local browser storage: replaces any external service =====
 (()=>{
 const K="mm_docs_v1",uid=()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
 const load=()=>{try{return JSON.parse(localStorage.getItem(K)||"{}")}catch(e){return{}}};
 let store=load(),seq=0;const subs=new Set(),fire=()=>subs.forEach(f=>f());
 const bc=typeof BroadcastChannel!="undefined"?new BroadcastChannel("mm"):null;
-const save=()=>{try{localStorage.setItem(K,JSON.stringify(store))}catch(e){store=load();throw new Error("Stockage du navigateur plein : supprimez des images.")}if(bc)bc.postMessage(1);fire()};
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(store))}catch(e){store=load();throw new Error("Browser storage full: delete some images.")}if(bc)bc.postMessage(1);fire()};
 addEventListener("storage",e=>{if(e.key==K){store=load();fire()}});if(bc)bc.onmessage=()=>{store=load();fire()};
 const split=p=>{const a=p.split("/");return{coll:a.slice(0,-1).join("/"),id:a[a.length-1]}};
 const sd=r=>({id:r?r.id:"",exists:!!r,data:()=>r?r.data:undefined,metadata:{}});
@@ -77,11 +77,11 @@ const user={me:async()=>({id:myId,name:"",isOwner:false,canEdit:true})};
 const assets={async upload(blob){const bm=await createImageBitmap(blob),s=Math.min(1,800/Math.max(bm.width,bm.height)),c=document.createElement("canvas");
  c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(bm,0,0,c.width,c.height);
  return{id:uid(),url:c.toDataURL("image/jpeg",.8)}}};
-// Téléchargement automatique : PC, Mac, iPad, tablettes Android
+// Automatic download: PC, Mac, iPad, Android tablets
 const downloads={async save({filename,data}){
  const b=data instanceof Blob?data:new Blob([data]);
  const url=URL.createObjectURL(b);
- // Anciens navigateurs sans attribut "download" (vieux Safari iOS) : ouverture du fichier
+ // Old browsers without the "download" attribute (old iOS Safari): open the file
  if(!("download" in HTMLAnchorElement.prototype)){
   const w=window.open(url,"_blank");
   if(!w)location.href=url;
@@ -92,17 +92,17 @@ const downloads={async save({filename,data}){
  a.href=url;a.download=filename;a.rel="noopener";a.style.display="none";
  document.body.appendChild(a);
  a.click();
- // délai long : Safari iPad/iPhone peut mettre du temps à lire le blob
+ // long delay: Safari on iPad/iPhone can take time to read the blob
  setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},60000);
 }};
 window.claude={use:async n=>({db,user,assets,downloads}[n]||null)};
 })();
 
-const Q=[{t:"Qu’est-ce qui fonctionne ?",c:"#e3f6e6",b:"#2e7d46",x:-380,y:-30,d:[-1,0]},
-{t:"Qu’est-ce qui fonctionne moins bien ?",c:"#fde4ee",b:"#c2306b",x:380,y:-30,d:[1,0]},
-{t:"Qu’aurions-nous besoin d’observer / documenter pour le savoir ?",c:"#e0ecfd",b:"#2563b8",x:0,y:240,d:[0,1]}];
+const Q=[{t:"What works well?",c:"#e3f6e6",b:"#2e7d46",x:-380,y:-30,d:[-1,0]},
+{t:"What works less well?",c:"#fde4ee",b:"#c2306b",x:380,y:-30,d:[1,0]},
+{t:"What would we need to observe / document to find out?",c:"#e0ecfd",b:"#2563b8",x:0,y:240,d:[0,1]}];
 const ICONS="👍 ✅ 💡 ⭐ 🎯 🤝 💬 📅 ⏱️ ⚠️ ❌ 🔍 📊 📝 📚 👥 🧩 🔧 📈 📉 ❓ 🗂️ 📞 🏥 🏫 🏢 🚀 🔄 🔒 📌 🧠".split(" ");
-// Service de génération d’images : à brancher (URL d’une fonction serveur acceptant {prompt} et renvoyant {url} ou {b64}).
+// Image generation service: plug in here (URL of a server function accepting {prompt} and returning {url} or {b64}).
 const IMAGE_SERVICE=null;
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const LS={g(k){try{return localStorage.getItem(k)}catch(e){return null}},s(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
@@ -110,34 +110,34 @@ let db,user,assets,dl,me,sid=null,sess=null,ideas=[],unsubs=[],V={x:0,y:0,z:1},s
 const toast=m=>{const t=$("#toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",2800)};
 const isAnim=()=>sess&&me&&sess.owner===me.id;
 const canMod=i=>isAnim()||(me&&i.uid===me.id);
-const fmt=t=>new Date(t).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
+const fmt=t=>new Date(t).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"});
 const close=()=>$("#md").innerHTML="";
 const modal=h=>{$("#md").innerHTML='<div class="ov"><div class="box">'+h+'</div></div>';$(".ov").onclick=e=>{if(e.target.classList.contains("ov"))close()}};
 const col=()=>db.collection("sessions/"+sid+"/ideas");
-const upd=(id,d)=>col().doc(id).update(d).catch(e=>toast("Action refusée : "+(e.message||e.code)));
+const upd=(id,d)=>col().doc(id).update(d).catch(e=>toast("Action denied: "+(e.message||e.code)));
 
 async function init(){
  const c=window.claude;
  [db,user,assets,dl]=c?await Promise.all(["db","user","assets","downloads"].map(n=>c.use(n))):[];
- if(!db||!user){$("#app").innerHTML='<div class="home"><div class="card"><h2>Connexion requise</h2><p>Cette application a besoin d’un compte connecté et du stockage partagé pour fonctionner. Ouvrez-la depuis claude.ai.</p></div></div>';return}
+ if(!db||!user){$("#app").innerHTML='<div class="home"><div class="card"><h2>Sign-in required</h2><p>This app needs a signed-in account and shared storage to work. Open it from claude.ai.</p></div></div>';return}
  me=await user.me();if(!name)name=me.name||"";
  addEventListener("hashchange",route);route();
 }
 function route(){const h=location.hash.slice(1);h?open(h):home()}
 async function home(){
  unsubs.forEach(u=>u());unsubs=[];sid=null;sess=null;$("#hd").hidden=true;
- $("#app").innerHTML=`<div class="home"><div class="card"><h2>Nouvelle carte mentale</h2>
- <input id="hn" placeholder="Nom de la session"><input id="ht" placeholder="Thème central, ex. Améliorer nos pratiques professionnelles">
- <button class="p" data-a="create">Créer la session</button></div>
- <div class="card"><h2>Rejoindre une session</h2><input id="hc" placeholder="Code de la session"><button data-a="join">Rejoindre</button></div>
- <div class="card"><h2>Sessions précédentes</h2><div id="hl">Chargement…</div></div></div>`;
+ $("#app").innerHTML=`<div class="home"><div class="card"><h2>New mind map</h2>
+ <input id="hn" placeholder="Session name"><input id="ht" placeholder="Central theme, e.g. Improve our professional practices">
+ <button class="p" data-a="create">Create session</button></div>
+ <div class="card"><h2>Join a session</h2><input id="hc" placeholder="Session code"><button data-a="join">Join</button></div>
+ <div class="card"><h2>Previous sessions</h2><div id="hl">Loading…</div></div></div>`;
  try{const s=await db.collection("sessions").orderBy("ts","desc").limit(20).get();
- $("#hl").innerHTML=s.docs.length?s.docs.map(d=>`<button data-a="go" data-id="${d.id}" style="margin:3px">${esc(d.data().name||d.id)}</button>`).join(""):"Aucune session pour l’instant.";}catch(e){$("#hl").textContent="Liste indisponible."}
+ $("#hl").innerHTML=s.docs.length?s.docs.map(d=>`<button data-a="go" data-id="${d.id}" style="margin:3px">${esc(d.data().name||d.id)}</button>`).join(""):"No sessions yet.";}catch(e){$("#hl").textContent="List unavailable."}
 }
 async function create(){
- const t=$("#ht").value.trim(),n=$("#hn").value.trim()||t;if(!t)return toast("Saisissez un thème.");
+ const t=$("#ht").value.trim(),n=$("#hn").value.trim()||t;if(!t)return toast("Please enter a theme.");
  const id=Math.random().toString(36).slice(2,8);
- try{await db.doc("sessions/"+id).set({name:n,theme:t,owner:me.id,ts:Date.now()});go(id)}catch(e){toast("Création impossible : "+(e.message||e.code))}
+ try{await db.doc("sessions/"+id).set({name:n,theme:t,owner:me.id,ts:Date.now()});go(id)}catch(e){toast("Could not create: "+(e.message||e.code))}
 }
 function go(id){try{location.hash=id}catch(e){}open(id)}
 function open(id){
@@ -146,7 +146,7 @@ function open(id){
  $("#hd").hidden=false;$("#nm").value=name;
  const st=$("#st");V.z=Math.min(1,st.clientWidth/1150);V.x=st.clientWidth/2;V.y=st.clientHeight/2-40;
  bind(st);
- unsubs.push(db.doc("sessions/"+id).onSnapshot(s=>{if(!s.exists){$("#app").innerHTML='<div class="home"><div class="card">Session introuvable.</div></div>';return}sess=s.data();$("#ttl").textContent=sess.name;$("#code").textContent=id;$("#org").hidden=!isAnim();render()},e=>toast(e.message)));
+ unsubs.push(db.doc("sessions/"+id).onSnapshot(s=>{if(!s.exists){$("#app").innerHTML='<div class="home"><div class="card">Session not found.</div></div>';return}sess=s.data();$("#ttl").textContent=sess.name;$("#code").textContent=id;$("#org").hidden=!isAnim();render()},e=>toast(e.message)));
  unsubs.push(col().onSnapshot(s=>{ideas=s.docs.map(d=>({id:d.id,...d.data()}));if(!drag)render()},e=>toast(e.message)));
 }
 const hh=i=>64+(showVis&&i.img?88:0);
@@ -163,13 +163,13 @@ function render(){
  let s='<svg style="position:absolute;left:0;top:0;overflow:visible" width="1" height="1">';
  Q.forEach((qq,qi)=>{s+=ln({x:0,y:0},qq,qq.b,qi==2);by[qi].forEach(i=>{if(P[i.id])s+=ln(i.p&&P[i.p]?P[i.p]:qq,P[i.id],qq.b,qi==2)})});s+="</svg>";
  s+=`<div class="n ct" style="left:0;top:0">${esc(sess.theme)}${isAnim()?' <button data-a="th" style="background:#fff8;border:0;border-radius:8px">✎</button>':""}</div>`;
- Q.forEach((qq,qi)=>{s+=`<div class="n qn" style="left:${qq.x}px;top:${qq.y}px;--c:${qq.c};--b:${qq.b}">${qq.t}<div style="margin-top:6px"><span>(${by[qi].length})</span> <button data-a="add" data-q="${qi}">+ Ajouter une idée</button> <button data-a="tog" data-q="${qi}" title="Replier / déplier">${coll[qi]?"▸":"▾"}</button></div></div>`});
+ Q.forEach((qq,qi)=>{s+=`<div class="n qn" style="left:${qq.x}px;top:${qq.y}px;--c:${qq.c};--b:${qq.b}">${qq.t}<div style="margin-top:6px"><span>(${by[qi].length})</span> <button data-a="add" data-q="${qi}">+ Add an idea</button> <button data-a="tog" data-q="${qi}" title="Collapse / expand">${coll[qi]?"▸":"▾"}</button></div></div>`});
  ideas.forEach(i=>{const p=P[i.id];if(!p)return;const hit=q&&!i.text.toLowerCase().includes(q);
   s+=`<div class="n i${hit?" dim":""}${Date.now()-i.ts<60000?" new":""}" data-id="${i.id}" style="left:${p.x}px;top:${p.y}px;width:220px;min-height:${p.h}px;--c:${Q[i.q].c};--b:${Q[i.q].b}">
   <div class="t" title="${esc(i.text)}">${i.icon?`<span style="font-size:20px">${i.icon}</span> `:""}${esc(i.text)}</div>
-  <div class="m">${esc(i.author||"Anonyme")} · ${fmt(i.ts)}</div>
+  <div class="m">${esc(i.author||"Anonymous")} · ${fmt(i.ts)}</div>
   ${showVis&&i.img?`<img src="${esc(i.img)}" alt="" data-a="zoom" data-u="${esc(i.img)}">`:""}
-  <div class="a"><button data-a="sub" data-id="${i.id}">+ Sous-idée</button><button data-a="pic" data-id="${i.id}" title="Ajouter un visuel">🖼</button>${canMod(i)?`<button data-a="edit" data-id="${i.id}">✎</button><button data-a="del" data-id="${i.id}">🗑</button>`:""}</div></div>`});
+  <div class="a"><button data-a="sub" data-id="${i.id}">+ Sub-idea</button><button data-a="pic" data-id="${i.id}" title="Add a visual">🖼</button>${canMod(i)?`<button data-a="edit" data-id="${i.id}">✎</button><button data-a="del" data-id="${i.id}">🗑</button>`:""}</div></div>`});
  w.innerHTML=s;tf();
 }
 function tf(){$("#w").style.transform=`translate(${V.x}px,${V.y}px) scale(${V.z})`}
@@ -187,34 +187,34 @@ function bind(st){
 }
 function zoom(f){const st=$("#st"),px=st.clientWidth/2,py=st.clientHeight/2;V.x=px-(px-V.x)*f;V.y=py-(py-V.y)*f;V.z=Math.max(.2,Math.min(2.5,V.z*f));tf()}
 function ideaForm(qi,i,p){
- modal(`<h2 style="margin:0">${i?"Modifier l’idée":p?"Nouvelle sous-idée":"Nouvelle idée"}</h2><small>${Q[qi].t}</small>
- ${name?"":'<input id="fn" placeholder="Votre nom ou pseudonyme">'}
- <textarea id="ft" rows="3" placeholder="Votre proposition">${esc(i?i.text:"")}</textarea>
- <div><button class="p" id="ok">Enregistrer</button> <button onclick="close()">Annuler</button></div>`);
+ modal(`<h2 style="margin:0">${i?"Edit idea":p?"New sub-idea":"New idea"}</h2><small>${Q[qi].t}</small>
+ ${name?"":'<input id="fn" placeholder="Your name or nickname">'}
+ <textarea id="ft" rows="3" placeholder="Your idea">${esc(i?i.text:"")}</textarea>
+ <div><button class="p" id="ok">Save</button> <button onclick="close()">Cancel</button></div>`);
  $("#ok").onclick=async()=>{const t=$("#ft").value.trim();if(!t)return;
-  if($("#fn")){name=$("#fn").value.trim()||"Anonyme";LS.s("nm",name);$("#nm").value=name}
-  try{if(i)await col().doc(i.id).update({text:t});else await col().add({q:qi,p:p||null,text:t,author:name||"Anonyme",uid:me.id,ts:Date.now()});close()}catch(e){toast("Refusé : "+(e.message||e.code))}}
+  if($("#fn")){name=$("#fn").value.trim()||"Anonymous";LS.s("nm",name);$("#nm").value=name}
+  try{if(i)await col().doc(i.id).update({text:t});else await col().add({q:qi,p:p||null,text:t,author:name||"Anonymous",uid:me.id,ts:Date.now()});close()}catch(e){toast("Denied: "+(e.message||e.code))}}
 }
-async function up(blob,id){if(!assets)return toast("Import réservé aux éditeurs de la page.");
- try{const r=await assets.upload(blob);await upd(id,{img:r.url});close()}catch(e){toast("Envoi impossible : "+(e.message||e.code))}}
+async function up(blob,id){if(!assets)return toast("Upload reserved for page editors.");
+ try{const r=await assets.upload(blob);await upd(id,{img:r.url});close()}catch(e){toast("Upload failed: "+(e.message||e.code))}}
 function picker(id,tab="up"){
  const i=ideas.find(x=>x.id===id);if(!i)return;
- const T={up:"Importer",ic:"Icône",ai:"IA",dr:"Dessin"};
+ const T={up:"Upload",ic:"Icon",ai:"AI",dr:"Drawing"};
  let b="";
- if(tab=="up")b=assets?'<input type="file" id="fi" accept="image/*"><img id="pv" alt="" style="max-width:100%;display:none;border-radius:10px"><button class="p" id="ok" disabled>Valider</button>':'<div class="warn">L’import d’images est réservé aux personnes pouvant modifier cette page. Les icônes restent disponibles.</div>';
+ if(tab=="up")b=assets?'<input type="file" id="fi" accept="image/*"><img id="pv" alt="" style="max-width:100%;display:none;border-radius:10px"><button class="p" id="ok" disabled>Confirm</button>':'<div class="warn">Image upload is reserved for people who can edit this page. Icons are still available.</div>';
  if(tab=="ic")b='<div class="ic">'+ICONS.map(c=>`<button data-ic="${c}">${c}</button>`).join("")+"</div>";
- if(tab=="ai")b=`<textarea id="pr" rows="3">${esc("Illustration simple et claire : "+i.text)}</textarea>
-  ${IMAGE_SERVICE?'<button class="p" id="gen">Générer</button><img id="pv" alt="" style="max-width:100%;display:none"><button id="ok" style="display:none">Conserver</button>':'<div class="warn"><b>Génération IA non configurée.</b> Cette fonction nécessite de connecter un service de génération d’images par API (constante <code>IMAGE_SERVICE</code> dans le code). Aucune image n’est simulée.</div>'}`;
- if(tab=="dr")b=assets?'<canvas id="cv" width="320" height="220"></canvas><div><button data-c="#1f2430">⚫</button><button data-c="#2e7d46">🟢</button><button data-c="#c2306b">🔴</button><button data-c="#2563b8">🔵</button> <button id="clr">Effacer</button> <button class="p" id="ok">Valider</button></div>':'<div class="warn">Le dessin nécessite le stockage d’images, réservé aux éditeurs de la page.</div>';
- modal(`<h2 style="margin:0">Ajouter un visuel</h2><small>${esc(i.text)}</small>
+ if(tab=="ai")b=`<textarea id="pr" rows="3">${esc("Simple, clear illustration: "+i.text)}</textarea>
+  ${IMAGE_SERVICE?'<button class="p" id="gen">Generate</button><img id="pv" alt="" style="max-width:100%;display:none"><button id="ok" style="display:none">Keep</button>':'<div class="warn"><b>AI generation not configured.</b> This feature requires connecting an image generation service via API (<code>IMAGE_SERVICE</code> constant in the code). No image is simulated.</div>'}`;
+ if(tab=="dr")b=assets?'<canvas id="cv" width="320" height="220"></canvas><div><button data-c="#1f2430">⚫</button><button data-c="#2e7d46">🟢</button><button data-c="#c2306b">🔴</button><button data-c="#2563b8">🔵</button> <button id="clr">Clear</button> <button class="p" id="ok">Confirm</button></div>':'<div class="warn">Drawing requires image storage, reserved for page editors.</div>';
+ modal(`<h2 style="margin:0">Add a visual</h2><small>${esc(i.text)}</small>
  <div class="tabs">${Object.entries(T).map(([k,v])=>`<button data-t="${k}" class="${k==tab?"on":""}">${v}</button>`).join("")}</div>${b}
- ${i.img||i.icon?'<button id="rm">Retirer le visuel actuel</button>':""}`);
+ ${i.img||i.icon?'<button id="rm">Remove current visual</button>':""}`);
  $("#md").querySelectorAll("[data-t]").forEach(x=>x.onclick=()=>picker(id,x.dataset.t));
  $("#md").querySelectorAll("[data-ic]").forEach(x=>x.onclick=async()=>{await upd(id,{icon:x.dataset.ic});close()});
  if($("#rm"))$("#rm").onclick=async()=>{await upd(id,{img:null,icon:null});close()};
  if(tab=="up"&&assets){let f;$("#fi").onchange=e=>{f=e.target.files[0];if(!f)return;$("#pv").src=URL.createObjectURL(f);$("#pv").style.display="block";$("#ok").disabled=false};$("#ok").onclick=()=>up(f,id)}
  if(tab=="ai"&&IMAGE_SERVICE){let blob;$("#gen").onclick=async()=>{try{const r=await fetch(IMAGE_SERVICE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:$("#pr").value})}).then(r=>r.json());
-  const src=r.url||("data:image/png;base64,"+r.b64);blob=await (await fetch(src)).blob();$("#pv").src=src;$("#pv").style.display="block";$("#ok").style.display="inline-block"}catch(e){toast("Échec de la génération.")}};$("#ok").onclick=()=>up(blob,id)}
+  const src=r.url||("data:image/png;base64,"+r.b64);blob=await (await fetch(src)).blob();$("#pv").src=src;$("#pv").style.display="block";$("#ok").style.display="inline-block"}catch(e){toast("Generation failed.")}};$("#ok").onclick=()=>up(blob,id)}
  if(tab=="dr"&&assets){const cv=$("#cv"),g=cv.getContext("2d");let on=false,k="#1f2430";g.lineWidth=3;g.lineCap="round";
   const pt=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
   cv.onpointerdown=e=>{on=true;const[x,y]=pt(e);g.strokeStyle=k;g.beginPath();g.moveTo(x,y)};
@@ -226,23 +226,62 @@ function ordered(qi){const all=ideas.filter(i=>i.q==qi).sort((a,b)=>a.ts-b.ts),i
 function mkpdf(){const J=window.jspdf;if(!J)return null;const d=new J.jsPDF(),cl=s=>String(s??"").replace(/[^\u0000-\u00ff\u2018\u2019\u2013\u2014]/g,""),W=175;let y=20;
  const chk=n=>{if(y+n>285){d.addPage();y=20}};
  d.setFontSize(18);d.setTextColor(31,36,48);d.text(cl(sess.name),15,y);y+=9;d.setFontSize(11);
- d.splitTextToSize("Thème : "+cl(sess.theme),W).forEach(l=>{d.text(l,15,y);y+=6});y+=4;
+ d.splitTextToSize("Theme: "+cl(sess.theme),W).forEach(l=>{d.text(l,15,y);y+=6});y+=4;
  Q.forEach((qq,qi)=>{const L=ordered(qi),c=[1,3,5].map(k=>parseInt(qq.b.slice(k,k+2),16));chk(20);d.setFontSize(13);d.setTextColor(...c);
   d.splitTextToSize(cl(qq.t)+" ("+L.length+")",W).forEach(l=>{d.text(l,15,y);y+=7});d.setFontSize(10.5);d.setTextColor(31,36,48);
-  if(!L.length){d.text("Aucune idée.",20,y);y+=7}
+  if(!L.length){d.text("No ideas.",20,y);y+=7}
   L.forEach(i=>{const x=20+i.d*8;d.splitTextToSize("- "+cl(i.text)+" ("+cl(i.author)+")",W-5-i.d*8).forEach(l=>{chk(6);d.text(l,x,y);y+=5.5})});y+=6});
  return d}
 function synth(){
- modal('<h2 style="margin:0">Synthèse</h2>'+Q.map((qq,qi)=>{const L=ordered(qi);
-  return `<div style="border-left:5px solid ${qq.b};padding-left:10px"><b>${qq.t}</b> (${L.length})<ul>${L.map(i=>`<li style="margin-left:${i.d*18}px">${esc(i.text)} <small style="color:var(--mut)">— ${esc(i.author)}</small></li>`).join("")||"<li><i>Aucune idée</i></li>"}</ul></div>`}).join("")+'<button onclick="close()">Fermer</button>');
+ modal('<h2 style="margin:0">Summary</h2>'+Q.map((qq,qi)=>{const L=ordered(qi);
+  return `<div style="border-left:5px solid ${qq.b};padding-left:10px"><b>${qq.t}</b> (${L.length})<ul>${L.map(i=>`<li style="margin-left:${i.d*18}px">${esc(i.text)} <small style="color:var(--mut)">— ${esc(i.author)}</small></li>`).join("")||"<li><i>No ideas</i></li>"}</ul></div>`}).join("")+'<button onclick="close()">Close</button>');
 }
 async function csv(){
- const r=[["Question","Idée","Auteur","Date"],...ideas.sort((a,b)=>a.ts-b.ts).map(i=>[Q[i.q].t,i.text,i.author,new Date(i.ts).toISOString()])];
+ const r=[["Question","Idea","Author","Date"],...ideas.sort((a,b)=>a.ts-b.ts).map(i=>[Q[i.q].t,i.text,i.author,new Date(i.ts).toISOString()])];
  const s="\ufeff"+r.map(x=>x.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(";")).join("\n");
- if(!dl)return downloads_fallback(new Blob([s],{type:"text/csv;charset=utf-8"}),"propositions.csv");
- try{await dl.save({filename:"propositions.csv",data:s})}catch(e){if(e.code!="declined")toast("Export impossible.")}
+ if(!dl)return downloads_fallback(new Blob([s],{type:"text/csv;charset=utf-8"}),"proposals.csv");
+ try{await dl.save({filename:"proposals.csv",data:s})}catch(e){if(e.code!="declined")toast("Export failed.")}
 }
-// Secours si le service de téléchargement n'est pas disponible
+// "Mind map" PDF: draws the diagram (nodes + curves) on a landscape A3 page
+function mkmap(){const J=window.jspdf;if(!J)return null;
+ // positions: expand everything during the calculation, then restore the display
+ const sc=coll;coll={};render();const LP={};Object.keys(P).forEach(k=>LP[k]={...P[k]});coll=sc;render();
+ const cl=s=>String(s??"").replace(/[^\u0000-\u00ff\u2018\u2019\u2013\u2014]/g,""),rgb=h=>[1,3,5].map(k=>parseInt(h.slice(k,k+2),16));
+ const C={x:0,y:0,w:230,h:56},QN=Q.map(q=>({x:q.x,y:q.y,w:250,h:70})),IW=220;
+ const list=ideas.filter(i=>LP[i.id]),IN={};list.forEach(i=>IN[i.id]={x:LP[i.id].x,y:LP[i.id].y,w:IW,h:LP[i.id].h});
+ const all=[C,...QN,...Object.values(IN)];
+ const x0=Math.min(...all.map(n=>n.x-n.w/2)),x1=Math.max(...all.map(n=>n.x+n.w/2)),y0=Math.min(...all.map(n=>n.y-n.h/2)),y1=Math.max(...all.map(n=>n.y+n.h/2));
+ const PW=420,PH=297,M=10,T=24,s=Math.min(.5,(PW-2*M)/(x1-x0),(PH-T-M)/(y1-y0));
+ const ox=(PW-(x1-x0)*s)/2,oy=T+(PH-T-M-(y1-y0)*s)/2,X=x=>ox+(x-x0)*s,Y=y=>oy+(y-y0)*s;
+ const d=new J.jsPDF({orientation:"landscape",format:"a3"});
+ d.setFont("helvetica","bold");d.setFontSize(16);d.setTextColor(31,36,48);d.text(cl(sess.name),M,M+6);
+ d.setFont("helvetica","normal");d.setFontSize(10);d.text("Theme: "+cl(sess.theme),M,M+13);
+ const ln=(a,b,k,v)=>{const c=v?[a.x,(a.y+b.y)/2,b.x,(a.y+b.y)/2]:[(a.x+b.x)/2,a.y,(a.x+b.x)/2,b.y],sx=X(a.x),sy=Y(a.y);
+  d.setDrawColor(...rgb(k));d.setLineWidth(Math.max(.35,2*s));d.lines([[X(c[0])-sx,Y(c[1])-sy,X(c[2])-sx,Y(c[3])-sy,X(b.x)-sx,Y(b.y)-sy]],sx,sy,[1,1],"S")};
+ Q.forEach((qq,qi)=>{ln(C,QN[qi],qq.b,qi==2)});
+ list.forEach(i=>{const q=Q[i.q];ln(IN[i.p]||QN[i.q],IN[i.id],q.b,i.q==2)});
+ const box=(n,f,b,lw,r)=>{d.setFillColor(...rgb(f));d.setDrawColor(...rgb(b));d.setLineWidth(lw);d.roundedRect(X(n.x-n.w/2),Y(n.y-n.h/2),n.w*s,n.h*s,r*s,r*s,"FD")};
+ const mid=(t,n,fs,bold)=>{d.setFont("helvetica",bold?"bold":"normal");d.setFontSize(fs*s*2.835);d.setTextColor(31,36,48);
+  const L=d.splitTextToSize(cl(t),(n.w-24)*s),lh=fs*1.25*s,h=L.length*lh;L.forEach((l,k)=>d.text(l,X(n.x),Y(n.y)-h/2+lh*(k+.8),{align:"center"}))};
+ box(C,"#ece6fb","#5b3fa8",Math.max(.5,2.5*s),40);mid(sess.theme,C,17,true);
+ Q.forEach((qq,qi)=>{box(QN[qi],qq.c,qq.b,Math.max(.4,1.5*s),26);mid(qq.t+" ("+ideas.filter(i=>i.q==qi).length+")",QN[qi],15,true)});
+ list.forEach(i=>{const q=Q[i.q],n=IN[i.id],L=n.x-n.w/2+12,tp=n.y-n.h/2;
+  box(n,q.c,q.b,Math.max(.4,1.5*s),22);
+  d.setFont("helvetica","normal");d.setFontSize(14*s*2.835);d.setTextColor(31,36,48);
+  let ls=d.splitTextToSize(cl(i.text),(n.w-24)*s);if(ls.length>2){ls=ls.slice(0,2);ls[1]=ls[1].replace(/.{0,2}$/,"")+"..."}
+  ls.forEach((l,k)=>d.text(l,X(L),Y(tp+10+14*.8+k*17.5)));
+  d.setFontSize(11*s*2.835);d.setTextColor(74,80,100);d.text(cl(i.author||"Anonymous"),X(L),Y(tp+10+ls.length*17.5+11));
+  if(showVis&&i.img){try{d.addImage(i.img,"JPEG",X(L),Y(n.y+n.h/2-8-80),(n.w-24)*s,80*s)}catch(e){}}});
+ return d}
+function exportPdf(k){close();
+ const d=k=="m"?mkmap():mkpdf();
+ if(!d)return toast("PDF module unavailable (check your connection).");
+ const blob=d.output("blob"),fn=k=="m"?"mind-map-diagram.pdf":"mind-map-text.pdf";
+ (dl?dl.save({filename:fn,data:blob}):downloads_fallback(blob,fn))
+  .then(()=>toast("PDF downloaded"))
+  .catch(e=>{if(e&&e.code!="declined")toast("Export failed.")});
+}
+// Fallback if the download service is unavailable
 async function downloads_fallback(blob,fn){
  const url=URL.createObjectURL(blob),a=document.createElement("a");
  a.href=url;a.download=fn;a.style.display="none";
@@ -258,25 +297,19 @@ document.addEventListener("click",e=>{
  else if(a=="add")ideaForm(+b.dataset.q);
  else if(a=="edit"&&i)ideaForm(i.q,i);
  else if(a=="sub"&&i)ideaForm(i.q,null,i.id);
- else if(a=="pdf"){
-  const d=mkpdf();
-  if(!d)return toast("Module PDF indisponible (connexion ?).");
-  const blob=d.output("blob");
-  const fn="carte-mentale.pdf";
-  (dl?dl.save({filename:fn,data:blob}):downloads_fallback(blob,fn))
-   .then(()=>toast("PDF téléchargé"))
-   .catch(e=>{if(e&&e.code!="declined")toast("Export impossible.")});
- }
- else if(a=="del"&&i){modal(`<p>Supprimer cette idée ?</p><b>${esc(i.text)}</b><div><button class="p" id="ok">Supprimer</button> <button onclick="close()">Annuler</button></div>`);$("#ok").onclick=async()=>{try{const dsc=x=>[x,...ideas.filter(k=>k.p===x).flatMap(k=>dsc(k.id))];await Promise.all(dsc(id).map(d=>col().doc(d).delete()));close()}catch(e){toast("Refusé.")}}}
+ else if(a=="pdf")modal('<h2 style="margin:0">Download as PDF</h2><button class="p" data-a="pdft">📄 Text version (simple list)</button><button class="p" data-a="pdfm">🗺️ Mind map version (diagram)</button><button onclick="close()">Cancel</button>');
+ else if(a=="pdft")exportPdf("t");
+ else if(a=="pdfm")exportPdf("m");
+ else if(a=="del"&&i){modal(`<p>Delete this idea?</p><b>${esc(i.text)}</b><div><button class="p" id="ok">Delete</button> <button onclick="close()">Cancel</button></div>`);$("#ok").onclick=async()=>{try{const dsc=x=>[x,...ideas.filter(k=>k.p===x).flatMap(k=>dsc(k.id))];await Promise.all(dsc(id).map(d=>col().doc(d).delete()));close()}catch(e){toast("Denied.")}}}
  else if(a=="pic")picker(id);
- else if(a=="zoom")modal(`<img src="${esc(b.dataset.u)}" alt="" style="max-width:100%;border-radius:10px"><button onclick="close()">Fermer</button>`);
+ else if(a=="zoom")modal(`<img src="${esc(b.dataset.u)}" alt="" style="max-width:100%;border-radius:10px"><button onclick="close()">Close</button>`);
  else if(a=="tog"){coll[b.dataset.q]=!coll[b.dataset.q];render()}
  else if(a=="vis"){showVis=!showVis;render()}
  else if(a=="zi")zoom(1.2);else if(a=="zo")zoom(.83);
  else if(a=="syn")synth();else if(a=="csv")csv();
  else if(a=="org")ideas.forEach(i=>{if(i.x!=null)upd(i.id,{x:null,y:null})});
- else if(a=="th"){modal(`<h2 style="margin:0">Thème central</h2><input id="ft" value="${esc(sess.theme)}"><div><button class="p" id="ok">Enregistrer</button> <button onclick="close()">Annuler</button></div>`);$("#ok").onclick=async()=>{const t=$("#ft").value.trim();if(t){await db.doc("sessions/"+sid).update({theme:t});close()}}}
- else if(a=="share"){const l=(location.href.split("#")[0])+"#"+sid;(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>toast("Lien copié"),()=>toast("Code à partager : "+sid))}
+ else if(a=="th"){modal(`<h2 style="margin:0">Central theme</h2><input id="ft" value="${esc(sess.theme)}"><div><button class="p" id="ok">Save</button> <button onclick="close()">Cancel</button></div>`);$("#ok").onclick=async()=>{const t=$("#ft").value.trim();if(t){await db.doc("sessions/"+sid).update({theme:t});close()}}}
+ else if(a=="share"){const l=(location.href.split("#")[0])+"#"+sid;(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>toast("Link copied"),()=>toast("Code to share: "+sid))}
 });
 $("#nm").oninput=e=>{name=e.target.value;LS.s("nm",name)};
 $("#sr").oninput=e=>{q=e.target.value.trim().toLowerCase();render()};
